@@ -1,1 +1,179 @@
-<h1>Hello</h1>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PIPS</title>
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #252525;
+            color: #ccc;
+            height:100%;
+            position: relative;
+        }
+        #pips {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #time {
+            position: absolute;
+            text-align: center;
+            top: 10%;
+            display: block;
+            width: 100%;
+            font-weight: lighter;
+            font-family: "Helvetica Neue", sans-serif;
+            font-size: 3.8rem;
+        }
+    </style>
+</head>
+<body>
+<noscript>This'll need JavaScript, obviously</noscript>
+<canvas id="pips"></canvas>
+<div id="time"></div>
+<script>
+(function() {
+    class Drawing {
+        constructor(canvas) {
+            this.LINE_COLOR = '#ccc';
+            this.canvas = canvas;
+            this.ctx = this.canvas.getContext('2d');
+            this.calculateSize();
+            this.drawLine();
+        }
+        calculateSize() {
+            this.canvasWidth = this.canvas.width;
+            this.canvasHeight = this.canvas.height;
+        }
+        getX(percent) {
+            let offset = 0;
+            if (this.canvasHeight % 2) {
+                offset = 0.5;
+            }
+            return ((this.canvasWidth / 100) * percent) + offset;
+        }
+        getY(percent) {
+            let offset = 0;
+            if (this.canvasHeight % 2) {
+                offset = 0.5;
+            }
+            return (this.canvasHeight - (
+                        (this.canvasHeight / 100) * percent)
+                    ) + offset;
+        }
+        getPercentOfHeight(percent) {
+            return ((this.canvasHeight / 100) * percent)
+        }
+        getPercentOfWidth(percent) {
+            return ((this.canvasWidth / 100) * percent)
+        }
+        drawLine(width) {
+            if (width) {
+                width = this.getPercentOfHeight(width);
+            } else {
+                width = 1;
+            }
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.getX(0), this.getY(50));
+            this.ctx.lineTo(this.getX(100), this.getY(50));
+            this.ctx.lineWidth = width;
+            this.ctx.strokeStyle = this.LINE_COLOR;
+            this.ctx.stroke();
+        }
+        clear() {
+            this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+        }
+    }
+
+    class TimeHandler {
+        constructor(line, time, cheat) {
+            this.line = line;
+            this.time = time;
+            this.cheat = cheat || false;
+            let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            this.oscillator = audioCtx.createOscillator();
+            this.oscillator.type = 'sine';
+            this.oscillator.frequency.value = 1000;
+            this.gainNode = audioCtx.createGain();
+            this.gainNode.connect(audioCtx.destination);
+            this.oscillator.connect(this.gainNode);
+            this.gainNode.gain.value = 0;
+            this.oscillator.start();
+            window.requestAnimationFrame(this.process.bind(this));
+        }
+        process() {
+            let now = new Date(),
+                hours = now.getHours(),
+                minutes = now.getMinutes(),
+                seconds = now.getSeconds(),
+                ms = now.getMilliseconds();
+            this.line.clear();
+            if (this.cheat || minutes == 59 || minutes == 0) {
+                if (seconds == 0 && (minutes == 0 || this.cheat)) {
+                    this.handlePip(ms, 50);
+                } else if(seconds >= 56) {
+                    // short PIP is 1/10 of a second
+                    this.handlePip(ms, 10);
+                } else {
+                    this.handleRest();
+                }
+            } else {
+                this.handleRest();
+            }
+            this.showTime(hours, minutes, seconds);
+            window.requestAnimationFrame(this.process.bind(this));
+        }
+        pad(num) {
+            num = num.toString();
+            if (num.length < 2) {
+                num = '0' + num;
+            }
+            return num;
+        }
+        showTime(hours, minutes, seconds) {
+            hours = this.pad(hours);
+            minutes = this.pad(minutes);
+            seconds = this.pad(seconds);
+            this.time.innerHTML = hours + ':' + minutes + ':' + seconds;
+        }
+        handleRest() {
+            this.gainNode.gain.value = 0;
+            this.line.drawLine();
+        }
+        handlePip(ms, lengthPercent) {
+            // when ms = 0, x should be 100
+            // when ms = 1000, x should be 0
+            let msPercent = (ms / 1000) * 100;
+            if (msPercent <= lengthPercent) {
+                let width = 50;
+                if (ms < 50) {
+                    width = ms;
+                }
+                this.gainNode.gain.value = 1;
+                this.line.drawLine(width);
+            } else {
+                this.gainNode.gain.value = 0;
+                this.line.drawLine();
+            }
+        }
+    }
+
+    let canvasElement = document.getElementById('pips'),
+        time = document.getElementById('time');
+
+    canvasElement.height = window.innerHeight;
+    canvasElement.width = window.innerWidth;
+
+    let line = new Drawing(canvasElement),
+        cheat = (window.location.hash.indexOf('cheat') != -1);
+
+    let handler = new TimeHandler(line, time, cheat);
+}());
+</script>
+</body>
+</html>
