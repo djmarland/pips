@@ -173,6 +173,10 @@
         cheat = (window.location.hash.indexOf('cheat') != -1);
 
     let handler = new TimeHandler(line, time, cheat);
+
+    if (cheat) {
+        alert('Cheat mode. PIPS will sound every minute instead of on the hour');
+    }
 }());
 </script>
 </body>
